@@ -1,85 +1,32 @@
+
 name: Build Unsigned iOS IPA
 
 on:
-push:
-branches:
-- main
-workflow_dispatch:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
-build:
-runs-on: macos-latest
-steps:
-  - name: Checkout
-    uses: actions/checkout@v4
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  - name: Select Xcode
-    run: xcodebuild -version
+      - name: Select Xcode
+        run: xcodebuild -version
 
-  - name: Build unsigned iOS app
-    run: |
-      set -euo pipefail
-      cd PoC
-
-      PROJECT=$(find . -maxdepth 1 -name "*.xcodeproj" -print -quit)
-
-      if [ -z "$PROJECT" ]; then
-        echo "ERROR: No .xcodeproj found in PoC/"
-        exit 1
-      fi
-
-      echo "Project: $PROJECT"
-      xcodebuild -list -project "$PROJECT"
-
-      APP_TARGETS=$(grep -B 2 -A 5 'productType = "com.apple.product-type.application"' "$PROJECT/project.pbxproj" \
-        | sed -n 's/.*name = \(.*\);/\1/p' \
-        | tr -d '"')
-
-      if [ -z "$APP_TARGETS" ]; then
-        echo "ERROR: Could not identify the app target automatically."
-        exit 1
-      fi
-
-      echo "Possible app targets:"
-      echo "$APP_TARGETS"
-
-      TARGET=$(echo "$APP_TARGETS" | head -n 1)
-
-      xcodebuild \
-        -project "$PROJECT" \
-        -target "$TARGET" \
-        -configuration Release \
-        -sdk iphoneos \
-        -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-        CODE_SIGNING_ALLOWED=NO \
-        CODE_SIGNING_REQUIRED=NO \
-        build
-
-  - name: Package unsigned IPA
-    run: |
-      set -euo pipefail
-
-      APP_DIR="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos"
-      shopt -s nullglob
-      apps=("$APP_DIR"/*.app)
-
-      if [ "${#apps[@]}" -eq 0 ]; then
-        echo "ERROR: No compiled .app found in $APP_DIR"
-        find "$RUNNER_TEMP/DerivedData/Build/Products" -maxdepth 4 -print || true
-        exit 1
-      fi
-
-      mkdir -p "$RUNNER_TEMP/ipa/Payload"
-      cp -R "${apps[0]}" "$RUNNER_TEMP/ipa/Payload/"
-
-      cd "$RUNNER_TEMP/ipa"
-      ditto -c -k --sequesterRsrc --keepParent Payload "$RUNNER_TEMP/unsigned-ios.ipa"
-
-  - name: Upload IPA
-    uses: actions/upload-artifact@v4
-    with:
-      name: unsigned-ios-ipa
-      path: ${{ runner.temp }}/unsigned-ios.ipa
-      if-no-files-found: error
-      retention-days: 14
-
+      - name: Inspect project
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd PoC
+          PROJECT=$(find . -maxdepth 1 -name "*.xcodeproj" -print -quit)
+          if [ -z "$PROJECT" ]; then
+            echo "No .xcodeproj found in PoC/"
+            exit 1
+          fi
+          echo "Project: $PROJECT"
+          xcodebuild -list -project "$PROJECT"
+          echo "Next, use the actual app target shown above to build."
