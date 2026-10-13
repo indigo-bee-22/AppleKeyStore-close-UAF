@@ -9,8 +9,6 @@ workflow_dispatch:
 jobs:
 build:
 runs-on: macos-latest
-
-```
 steps:
   - name: Checkout
     uses: actions/checkout@v4
@@ -84,5 +82,4 @@ steps:
       path: ${{ runner.temp }}/unsigned-ios.ipa
       if-no-files-found: error
       retention-days: 14
-```
 
