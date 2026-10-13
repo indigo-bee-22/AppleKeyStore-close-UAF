@@ -2,7 +2,8 @@ name: Build Unsigned iOS IPA
 
 on:
 push:
-branches: ["main"]
+branches:
+- main
 workflow_dispatch:
 
 jobs:
@@ -23,6 +24,7 @@ steps:
       cd PoC
 
       PROJECT=$(find . -maxdepth 1 -name "*.xcodeproj" -print -quit)
+
       if [ -z "$PROJECT" ]; then
         echo "ERROR: No .xcodeproj found in PoC/"
         exit 1
@@ -50,7 +52,6 @@ steps:
         -target "$TARGET" \
         -configuration Release \
         -sdk iphoneos \
-        -destination 'generic/platform=iOS' \
         -derivedDataPath "$RUNNER_TEMP/DerivedData" \
         CODE_SIGNING_ALLOWED=NO \
         CODE_SIGNING_REQUIRED=NO \
@@ -84,3 +85,4 @@ steps:
       if-no-files-found: error
       retention-days: 14
 ```
+
