@@ -17,16 +17,49 @@ jobs:
       - name: Select Xcode
         run: xcodebuild -version
 
-      - name: Inspect project
+
+      - name: Build unsigned iOS app
         shell: bash
         run: |
           set -euo pipefail
           cd PoC
-          PROJECT=$(find . -maxdepth 1 -name "*.xcodeproj" -print -quit)
-          if [ -z "$PROJECT" ]; then
-            echo "No .xcodeproj found in PoC/"
+
+          xcodebuild \
+            -project "./UAFTester.xcodeproj" \
+            -scheme "UAFTester" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APP_DIR="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos"
+          APP="$APP_DIR/UAFTester.app"
+
+          if [ ! -d "$APP" ]; then
+            echo "ERROR: App was not produced at $APP"
+            find "$RUNNER_TEMP/DerivedData/Build/Products" -maxdepth 4 -print || true
             exit 1
           fi
-          echo "Project: $PROJECT"
-          xcodebuild -list -project "$PROJECT"
-          echo "Next, use the actual app target shown above to build."
+
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+
+          cd "$RUNNER_TEMP/ipa"
+          ditto -c -k --sequesterRsrc --keepParent Payload "$RUNNER_TEMP/unsigned-ios.ipa"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-ios-ipa
+          path: ${{ runner.temp }}/unsigned-ios.ipa
+          if-no-files-found: error
+          retention-days: 14
